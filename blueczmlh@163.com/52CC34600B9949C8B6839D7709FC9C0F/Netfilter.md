@@ -48,5 +48,11 @@ module_init(myhook_init);
 module_exit(myhook_exit);
 ```
 用户空间操作已经注册到内核的hook函数（用户空间和内核空间的通信）
+
 借鉴iptables和内核的通信方式，即getsockopt/setsockopt
+
 上面我们使用nf_register_hokk()注册nf_sockopt_ops结构体对象，而现在我们需要使用nf_register_sockopt()将该对象注册到全局双向链表nf_sockopts中去，当我们在用户空间调用getsockopt/setsockopt时经过层层系统调用，最后就会在nf_sockopts链表中找到我们已经注册的响应函数。
+
+
+
+
