@@ -1,4 +1,4 @@
-# <center> HTTP GIT服务器的搭建 </center>
+# <center> HTTP GIT 服务器的搭建 </center>
  
 ### 1. apache2,git-core,gitweb安装：
 

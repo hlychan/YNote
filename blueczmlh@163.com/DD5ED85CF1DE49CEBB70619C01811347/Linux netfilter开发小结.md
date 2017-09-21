@@ -1,4 +1,4 @@
-# <center> Linux netfilter开发小结 </center>
+# <center> Linux netfilter 开发小结 </center>
 
 ### 1. 前置知识
 
@@ -146,3 +146,100 @@ IHL(Internet Header Length 报头长度)，位于IP报文的第二个字段，4�
 
 ### 3. 开始编写防火墙
 
+##### 主要代码如下：
+
+    struct nf_hook_ops {
+        struct list_head list;
+
+        /* User fills in from here down. */
+        nf_hookfn	*hook;
+        struct module	*owner;
+        void		*priv;
+        u_int8_t	pf;
+        unsigned int	hooknum;
+        /* Hooks are ordered in ascending priority. */
+        int		priority;
+    };
+
+    // 其中nf_hookfn为函数指针，原型如下
+    typedef unsigned int nf_hookfn(const struct nf_hook_ops *ops,
+                                    struct sk_buff *skb,
+                                    const struct net_device *in,
+                                    const struct net_device *out,
+                                    int (*okfn)(struct sk_buff *));
+
+    // 注册hook函数步骤如下
+    struct nf_hook_ops nfho = {
+        .hook = my_hook_func, // 回调函数
+        .owner = THIS_MODULE,
+        .pf = PF_INET,
+        .hooknum = NF_IP_LOCAL_OUT, // 挂载在本地出口
+        .priority = NF_IP_PRI_FIRST, //优先级最高
+    }
+
+    // 注册nfho到内核
+    int __init myhook_init(void)
+    {
+        return nf_register_hook(&nfho);
+    }
+
+    // 注销nfho
+    void __exit myhook_exit(void)
+    {
+        nf_unregister_hook(&nfhook);
+    }
+
+    module_init(myhook_init);
+    module_exit(myhook_exit);
+    
+##### sk_buff:
+
+sk_buff结构的成员skb->head指向一个已分配的空间的头部，即申请到的整个缓冲区的头，skb->end指向该空间的尾部，这两个成员指针从空间创建之后，就不能被修改。skb->data指向分配空间中数据的头部，skb->tail指向数据的尾部，这两个值随着网络数据在各层之间的传递、修改，会被不断改动。刚开始接触skb_buf的时候会产生一种错误的认识，就是以为协议头都会是放在skb->head和skb->data这两个指针之间，但实际上skb_buf的操作函数都无法直接对这一段内存进行操作，所有的操作函数所做的就仅仅是修改skb->data和skb->tail这两个指针而已，向套接字缓冲区拷贝数据也是由其它函数来完成的，所以不管是从网卡接受的数据还是上层发下来的数据，协议头都是被放在了skb->data到skb->tail之间，通过skb_push前移skb->data加入协议头，通过skb_pull后移skb->data剥离协议头。
+
+###### sk_buf常用解析
+
+    struct sk_buff *sb = skb;
+    
+    // IP地址
+    #define NIPQUAD(addr) \
+            ((unsigned char *)&addr)[0], \
+            ((unsigned char *)&addr)[1], \
+            ((unsigned char *)&addr)[2], \
+            ((unsigned char *)&addr)[3]
+
+    #define NIPQUAD_FMT "%u.%u.%u.%u" 
+    __be sip, dip;
+    struct iphdr *iph=ip_hdr(sb);
+    sip=iph->saddr;
+    dip=iph->daddr;
+
+    printk("sip:%u.%u.%u.%u,dip:%u.%u.%u.%u\m",
+            NIPQUAD(sip), NIPQUAD(dip));
+            
+    // 协议
+    struct iphdr *iph=ip_hdr(sb);
+    iph->protocol==IPPROTO_TCP;
+    
+    //端口
+    struct iphdr *iph=ip_hdr(sb);
+    struct tcphdr *tcph = NULL;
+    struct udphdr *udph = NULL;
+    unsigned short sport = 0;
+    unsigned short dport = 0;
+    if(iph->protocol==IPPROTO_TCP)
+    {
+        tcph = (struct tcphdr *)((char *)skb->data + (int)(iph->ihl * 4));
+        sport=ntohs(tcph->source);
+        dport=ntohs(tcph->dest);
+    }
+    else if(iph->protocal==IPPROTO_UDP)
+    {
+        udph = (struct udphdr *)((char *)skb->data + (int)(iph->ihl * 4));
+        sport=ntohs(udph->source);
+        dport=ntohs(udph->dest);
+    }
+    
+    // tcp的数据
+    char *data = NULL;
+    struct tcphdr *tcph = (struct tcphdr *)((char *)skb->data + (int)(iph->ihl * 4));;
+    data = (char *)((int)tcph + (int)(tcph->doff * 4));
