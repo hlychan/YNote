@@ -1,10 +1,12 @@
-1. apache2,git-core,gitweb安装：
+# <center> HTTP GIT服务器的搭建 </center>
+ 
+### 1. apache2,git-core,gitweb安装：
 
 ```
 sudo apt-get install apache2 git-core gitweb
 ```
     
-2. 创建git库
+### 2. 创建git库
 
 选择/home/git-http为仓库存储路径
 
@@ -19,7 +21,7 @@ sudo apt-get install apache2 git-core gitweb
         [http]
             receivepack = true
 
-3. apache2配置：
+### 3. apache2配置：
 
 修改/etc/apache2/httpd.conf为如下内容：
 
@@ -73,7 +75,7 @@ sudo apt-get install apache2 git-core gitweb
         AuthUserfile /var/www/git-auth
     </LocationMatch>
 
-4、push操作的认证
+### 4、push操作的认证
 
 默认git-http-backend的upload-pack是被置为真的，即可以执行git clone/pull/fetch。但是，默认receive-pack是被置为false，即不能git push。为了支持带认证的git push，需要两步操作。
 
@@ -88,17 +90,17 @@ sudo apt-get install apache2 git-core gitweb
 
     htpasswd -c /var/www/git-auth jacky # 命令意思为在/var/www下生成git-auth认证文件，添加jacky用户。注意"-c"选项只在第一次生成认证文件时需要
 
-5、gitweb的配置
+### 5、gitweb的配置
 
 修改/etc/gitweb.conf中的一句：
 
     $projectroot = "/home/git-http"
 
-6、重启apache2
+### 6、重启apache2
 
     sudo service apache2 restart
 
-7、客户端检查
+### 7、客户端检查
 
 在客户端电脑上，找一个目录，执行如下命令
 
@@ -106,6 +108,6 @@ sudo apt-get install apache2 git-core gitweb
     cd test
     echo "test" > test.txt
     git add test.txt
-    git commit -s  #输入注释
+    git commit -s  #在弹出的文本编辑器中输入注释
     git push origin master
 然后，在浏览器输入http://10.141.199.18，查看刚才的操作是否记录到gitweb上了
