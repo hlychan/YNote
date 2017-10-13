@@ -6,16 +6,16 @@
 
     struct ip {
     #if BYTE_ORDER == LITTLE_ENDIAN
-	    unsigned char	ip_hl:4,		/* header length */
-	    ip_v:4;			/* version */
+        unsigned char	ip_hl:4,		/* header length */
+        unsigned char   ip_v:4;			/* version */
     #endif
-	    unsigned char	ip_tos;			/* type of service */
-	    short	ip_len;	/* total length */
-	    unsigned short	ip_id;/* identification */
-	    short	ip_off;		
-	    unsigned char	ip_ttl;/* time to live */
-	    unsigned char	ip_p;/* protocol */
-	    unsigned short	ip_sum;
+        unsigned char	ip_tos;			/* type of service */
+        short	ip_len;	/* total length */
+        unsigned short	ip_id;/* identification */
+        short	ip_off;		
+        unsigned char	ip_ttl;/* time to live */
+        unsigned char	ip_p;/* protocol */
+        unsigned short	ip_sum;
         struct  in_addr ip_src,ip_dst;/* source and dest address */
     };
 IHL(Internet Header Length 报头长度)，位于IP报文的第二个字段，4位，表示IP报文头部按32位字长（32位，4字节）计数的长度，也即报文头的长度等于IHL的值乘以4。 (ip_hl)
@@ -216,11 +216,11 @@ sk_buff结构的成员skb->head指向一个已分配的空间的头部，即申�
     printk("sip:%u.%u.%u.%u,dip:%u.%u.%u.%u\m",
             NIPQUAD(sip), NIPQUAD(dip));
             
-    // 协议
+    // 协议, IPPROTO_IP/IPPROTO_TCP等定义在netinet/in.h中，内核空间则定义在linux/in.h中
     struct iphdr *iph=ip_hdr(sb);
     iph->protocol==IPPROTO_TCP;
     
-    //端口
+    // 端口
     struct iphdr *iph=ip_hdr(sb);
     struct tcphdr *tcph = NULL;
     struct udphdr *udph = NULL;
@@ -240,6 +240,18 @@ sk_buff结构的成员skb->head指向一个已分配的空间的头部，即申�
     }
     
     // tcp的数据
+    // IHL(Internet Header Length 报头长度)，位于IP报文的第二个字段，4位，表示IP报文头部按32位
+    // 字长（32位，4字节）计数的长度，也即报文头的长度等于IHL的值乘以4。 (ip_hl)
     char *data = NULL;
     struct tcphdr *tcph = (struct tcphdr *)((char *)skb->data + (int)(iph->ihl * 4));;
     data = (char *)((int)tcph + (int)(tcph->doff * 4));
+    
+
+通信方法 | 无法介于内核态与用户态的原因
+---|---
+管道（不包括命名管道） | 局限于父子进程间的通信。
+消息队列 | 在硬、软中断中无法无阻塞地接收数据。
+信号量 | 无法介于内核态和用户态使用。
+内存共享 | 需要信号量辅助，而信号量又无法使用。
+套接字 | 在硬、软中断中无法无阻塞地接收数据。
+
